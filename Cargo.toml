@@ -1,0 +1,30 @@
+[package]
+name = "uni-llm-api"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+axum = "0.8.1"
+axum-extra = { version = "0.10.0", features = ["typed-header"] }
+tokio = { version = "1.43.0", features = ["full"] }
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+anyhow = "1.0.94"
+
+[lints.rustdoc]
+broken_intra_doc_links = "deny"
+bare_urls = "deny"
+private_intra_doc_links = "deny"
+
+[lints.rust]
+missing_docs = "deny"
+single_use_lifetimes = "warn"
+unreachable_pub = "warn"
+unsafe_code = "deny"
+
+[lints.clippy]
+todo = "warn"
+needless_borrow = "deny"
+redundant_clone = "deny"
