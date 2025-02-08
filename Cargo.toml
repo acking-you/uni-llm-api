@@ -12,6 +12,12 @@ tokio = { version = "1.43.0", features = ["full"] }
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 anyhow = "1.0.94"
+reqwest = { version = "0.12.12", features = ["json", "stream"] }
+futures = "0.3.31"
+dotenvy = "0.15.7"
+async-stream = "0.3.6"
+tokio-stream = "0.1.17"
+tower-http = { version = "0.6.2", features = ["trace"] }
 
 [lints.rustdoc]
 broken_intra_doc_links = "deny"

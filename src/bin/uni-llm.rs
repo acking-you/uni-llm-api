@@ -1,3 +1,4 @@
+//! A binary for the Uni Llama project
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 use uni_llm_api::run_server;
 
@@ -11,5 +12,5 @@ async fn main() {
         .with(tracing_subscriber::fmt::layer().pretty())
         .init();
 
-    run_server(addr).await.unwrap();
+    run_server("0.0.0.0:12345").await.unwrap();
 }
