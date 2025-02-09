@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-axum = "0.8.1"
+axum = { version = "0.8.1", features = ["macros"] }
 axum-extra = { version = "0.10.0", features = ["typed-header"] }
 tokio = { version = "1.43.0", features = ["full"] }
 tracing = "0.1.41"
@@ -18,6 +18,9 @@ dotenvy = "0.15.7"
 async-stream = "0.3.6"
 tokio-stream = "0.1.17"
 tower-http = { version = "0.6.2", features = ["trace"] }
+parking_lot = "0.12.3"
+bytes = "1.10.0"
+chrono = "0.4.39"
 
 [lints.rustdoc]
 broken_intra_doc_links = "deny"

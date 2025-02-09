@@ -1,8 +1,12 @@
 //! implements the API for the Uni Llama project
+use api::uni_ollama::{chat::api_chat, UniModelInfoRef};
+use parking_lot::RwLock;
+use reqwest::Client;
 use std::fmt::Debug;
 use tokio::net::ToSocketAddrs;
 
-use api::uni_ollama::{api_chat, api_tags};
+use api::uni_ollama::tag::api_tags;
+use api::uni_ollama::UniModelsInfo;
 use axum::{
     routing::{get, post},
     Router,
@@ -10,11 +14,26 @@ use axum::{
 
 mod api;
 
+#[derive(Clone)]
+pub(crate) struct SharedState {
+    pub client: Client,
+    pub model_config: UniModelInfoRef,
+}
+
 /// Run the server
 pub async fn run_server<A: ToSocketAddrs + Debug>(addr: A) -> anyhow::Result<()> {
+    let client = Client::new();
+    let model_config = UniModelInfoRef::new(RwLock::new(UniModelsInfo::default()));
+    let shared_state = SharedState {
+        client,
+        model_config,
+    };
+
     let api_routes: Router = Router::new()
         .route("/tags", get(api_tags))
-        .route("/chat", post(api_chat));
+        .route("/chat", post(api_chat))
+        .with_state(shared_state);
+
     let app = Router::new().nest("/api", api_routes);
 
     let listener = tokio::net::TcpListener::bind(addr).await?;

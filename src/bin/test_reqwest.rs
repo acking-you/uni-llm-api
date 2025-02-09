@@ -67,10 +67,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         model: "qwen-max-2025-01-25".to_string(), // Confirm the model name according to the document
         messages: vec![Message {
             role: "user".to_string(),
-            content:
-                "role: the role of the message, either system, user, assistant, or tool
-            上面对大模型API请求中每个角色有什么不同？以及上下文一般怎么通过API塞进去的？"
-                    .to_string(),
+            content: "hello world".to_string(),
         }],
         stream: true,
         temperature: 0.7,
