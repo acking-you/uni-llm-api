@@ -13,6 +13,7 @@ use axum::{
 };
 
 mod api;
+pub(crate) mod common;
 
 #[derive(Clone)]
 pub(crate) struct SharedState {

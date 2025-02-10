@@ -65,7 +65,7 @@ async fn stream_reqwest_response(State(client): State<Client>) -> Response {
     response_builder
         .body(Body::from_stream(
             reqwest_response
-                .bytes_stream()
+                .bytes_stream().next()
                 .map(|v| v.map(|_|{
                         let resp = r#"{"model":"qwen2.5:latest","created_at":"2025-02-08T15:55:15.1845709Z","message":{"role":"assistant","content":"The"},"done":false}"#;
                         Bytes::from(format!("{resp}\n"))

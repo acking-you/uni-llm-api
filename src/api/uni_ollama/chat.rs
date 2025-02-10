@@ -82,12 +82,6 @@ fn default_keep_alive() -> String {
     "5m".to_string()
 }
 
-pub(crate) struct LocalChatStatus {
-    is_thinking: bool,
-}
-
-pub(crate) type LocalChatStatusRef = Arc<RwLock<LocalChatStatus>>;
-
 /// Handle chat requests. This function is called when a POST request is made to `/api/chat`.
 /// See [ollama chat api](https://github.com/ollama/ollama/blob/main/docs/api.md#generate-a-chat-completion)
 pub async fn api_chat(

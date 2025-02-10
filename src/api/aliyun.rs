@@ -21,7 +21,6 @@ use super::{
 };
 
 pub async fn chat_completion(
-    local_status: LocalChatStatusRef,
     chat_req: ChatRequest,
     model_id: String,
     model_name: String,
@@ -115,7 +114,7 @@ pub async fn process_streaming(
     );
     *response_builder.headers_mut().unwrap() = header;
     let res = response_builder
-        .body(Body::from_stream())
+        .body(Body::from_stream(stream_resp))
         .context("Construct response")?;
     Ok(res)
 }

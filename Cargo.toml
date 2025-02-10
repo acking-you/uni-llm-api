@@ -21,6 +21,7 @@ tower-http = { version = "0.6.2", features = ["trace"] }
 parking_lot = "0.12.3"
 bytes = "1.10.0"
 chrono = "0.4.39"
+pin-project = "1.1.9"
 
 [lints.rustdoc]
 broken_intra_doc_links = "deny"
