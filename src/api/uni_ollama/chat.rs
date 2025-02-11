@@ -108,7 +108,6 @@ pub async fn api_chat(
         (payload.model.clone(), value.name.clone(), api_info.clone())
     };
     // Make a request to the corresponding cloud provider's API
-    let local_status = Arc::new(RwLock::new(LocalChatStatus { is_thinking: false }));
     let res = match api_info.provider {
         api::uni_ollama::ApiKeyProvider::Aliyun => {
             aliyun::chat_completion(

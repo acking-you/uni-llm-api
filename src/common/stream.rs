@@ -229,8 +229,8 @@ impl<
 pub fn get_ollama_stream<S: Stream<Item = ReqwestResult> + Unpin + 'static>(
     model_id: String,
     bytes_stream: S,
-) -> Box<dyn Stream<Item = anyhow::Result<Bytes>>> {
-    Box::new(OllamaBytesStream {
+) -> impl Stream<Item = anyhow::Result<Bytes>> {
+    OllamaBytesStream {
         inner: futures::stream::unfold(
             OllamaBytesState {
                 status: ChatRespStatus::Init,
@@ -240,5 +240,5 @@ pub fn get_ollama_stream<S: Stream<Item = ReqwestResult> + Unpin + 'static>(
             OllamaBytesState::poll_next,
         ),
         is_done: false,
-    })
+    }
 }
