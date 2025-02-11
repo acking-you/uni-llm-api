@@ -11,14 +11,14 @@ pub(super) mod bytedance;
 pub(super) mod deepseek;
 pub(super) mod siliconflow;
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Default)]
 pub(crate) struct Delta {
     pub content: String,
     pub reasoning_content: Option<String>,
     pub role: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Default)]
 pub(crate) struct Choice {
     pub delta: Delta,
     pub finish_reason: Option<String>,
@@ -26,7 +26,7 @@ pub(crate) struct Choice {
     pub logprobs: Option<String>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Default)]
 pub(crate) struct Usage {
     pub completion_tokens: u32,
     pub prompt_tokens: u32,
@@ -34,7 +34,7 @@ pub(crate) struct Usage {
 }
 
 /// See [deepseek api](https://api-docs.deepseek.com/zh-cn/api/create-chat-completion#responses)
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Default)]
 pub(crate) struct ApiResponse {
     pub choices: Vec<Choice>,
     pub object: Option<String>,
@@ -51,16 +51,23 @@ pub(crate) struct ApiResponse {
 pub(crate) struct OllamaResponse {
     pub model: String,
     pub created_at: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub message: Option<Message>,
     pub done: bool,
     /// The meaning of this value is now changed to [`Usage::total_tokens`] here
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub total_duration: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub load_duration: Option<u32>,
     /// The meaning of this value is now changed to [`Usage::prompt_tokens`] here
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub prompt_eval_count: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub prompt_eval_duration: Option<u32>,
     /// The meaning of this value is now changed to [`Usage::completion_tokens`] here
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub eval_count: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub eval_duration: Option<u32>,
 }
 
@@ -99,28 +106,49 @@ impl OllamaResponse {
     }
 }
 
-pub(crate) fn gen_ollama_message(
-    model_id: &str,
-    api_resp: ApiResponse,
-) -> anyhow::Result<String> {
-    let delta = api_resp
-        .choices
-        .first()
-        .context("choice in response must not be empty")?
-        .delta;
-    let mut resp = OllamaResponse::default();
-    resp.add_modle_and_message(
+pub(crate) fn gen_ollama_think_start_message(model_id: &str) -> String {
+    gen_ollama_message(
         model_id,
         Message {
-            role: delta.role,
-            content: delta.content,
+            role: "assistant".to_string(),
+            content: "<think>".to_string(),
             images: None,
         },
-    );
-    if let Some(usage) = api_resp.usage {
-        resp.add_usage(&usage);
+        None,
+    )
+}
+
+pub(crate) fn gen_ollama_think_end_message(model_id: &str) -> String {
+    gen_ollama_message(
+        model_id,
+        Message {
+            role: "assistant".to_string(),
+            content: "</think>".to_string(),
+            images: None,
+        },
+        None,
+    )
+}
+
+pub(crate) fn gen_last_message(model_id: &str, usage: &Usage) -> String {
+    let mut resp = OllamaResponse::default();
+    resp.add_usage(usage);
+    resp.model = model_id.to_string();
+    resp.done = true;
+    serde_json::to_string(&resp).expect("gen last message never fails")
+}
+
+pub(crate) fn gen_ollama_message(
+    model_id: &str,
+    msg: Message,
+    usage: Option<&Usage>,
+) -> String {
+    let mut resp = OllamaResponse::default();
+    resp.add_modle_and_message(model_id, msg);
+    if let Some(usage) = usage {
+        resp.add_usage(usage);
     }
-    Ok()
+    serde_json::to_string(&resp).expect("gen ollama response nerver fails")
 }
 
 impl Default for OllamaResponse {
@@ -141,11 +169,11 @@ impl Default for OllamaResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct Message {
-    role: String,
-    content: String,
+pub struct Message {
+    pub role: String,
+    pub content: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    images: Option<String>,
+    pub images: Option<String>,
 }
 
 // Make our own error that wraps `anyhow::Error`.
