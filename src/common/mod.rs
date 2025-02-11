@@ -1,1 +1,1 @@
-pub mod stream;
+pub(crate) mod stream;

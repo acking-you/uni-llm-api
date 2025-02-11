@@ -1,8 +1,7 @@
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 
 use anyhow::Context;
 use axum::{extract::State, response::Response, Json};
-use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -11,7 +10,7 @@ use crate::{
 };
 
 #[derive(Debug, Deserialize)]
-pub struct ChatRequest {
+pub(crate) struct ChatRequest {
     pub model: String,
     pub messages: Vec<Message>,
     #[serde(default)]
@@ -27,7 +26,7 @@ pub struct ChatRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Message {
+pub(crate) struct Message {
     pub role: Role,
     pub content: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -38,7 +37,7 @@ pub struct Message {
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
-pub enum Role {
+pub(crate) enum Role {
     System,
     User,
     Assistant,
@@ -46,7 +45,7 @@ pub enum Role {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ToolCall {
+pub(crate) struct ToolCall {
     pub id: String,
     #[serde(rename = "type")]
     pub type_: String,
@@ -54,20 +53,20 @@ pub struct ToolCall {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct FunctionCall {
+pub(crate) struct FunctionCall {
     pub name: String,
     pub arguments: serde_json::Value,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Tool {
+pub(crate) struct Tool {
     #[serde(rename = "type")]
     pub type_: String,
     pub function: ToolFunction,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ToolFunction {
+pub(crate) struct ToolFunction {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
@@ -84,7 +83,7 @@ fn default_keep_alive() -> String {
 
 /// Handle chat requests. This function is called when a POST request is made to `/api/chat`.
 /// See [ollama chat api](https://github.com/ollama/ollama/blob/main/docs/api.md#generate-a-chat-completion)
-pub async fn api_chat(
+pub(crate) async fn api_chat(
     State(state): State<SharedState>,
     Json(payload): Json<ChatRequest>,
 ) -> Result<Response, AppError> {

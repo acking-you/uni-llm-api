@@ -21,7 +21,7 @@ use crate::api::ApiResponse;
 use crate::api::Message;
 use crate::api::Usage;
 
-pub enum ChatRespStatus {
+enum ChatRespStatus {
     /// Initial state
     Init,
     /// Thinking state
@@ -33,21 +33,17 @@ pub enum ChatRespStatus {
     ChatFinished,
 }
 
-pub struct OllamaBytesState<S> {
+struct OllamaBytesState<S> {
     status: ChatRespStatus,
     model_id: String,
     inner: S,
 }
 
-pub type ReqwestResult = reqwest::Result<Bytes>;
+type ReqwestResult = reqwest::Result<Bytes>;
 
 impl<S: Stream<Item = ReqwestResult> + Unpin> OllamaBytesState<S> {
-    pub async fn poll_next(mut self) -> Option<(anyhow::Result<bytes::Bytes>, Self)> {
-        let chunk = if let Some(chunk) = self.inner.next().await {
-            chunk
-        } else {
-            return None;
-        };
+    async fn poll_next(mut self) -> Option<(anyhow::Result<bytes::Bytes>, Self)> {
+        let chunk = self.inner.next().await?;
         match self.status {
             ChatRespStatus::Init
             | ChatRespStatus::ContentThinking
@@ -189,14 +185,17 @@ impl<S: Stream<Item = ReqwestResult> + Unpin> OllamaBytesState<S> {
     }
 }
 
+type OllamaBytesStateFold<S, Fut> =
+    Unfold<OllamaBytesState<S>, fn(OllamaBytesState<S>) -> Fut, Fut>;
+
 /// Used to convert the response stream of third-party APIs into a unified ollama format response stream
 #[pin_project]
-pub struct OllamaBytesStream<
+struct OllamaBytesStream<
     S: Stream<Item = ReqwestResult>,
     Fut: Future<Output = Option<(anyhow::Result<Bytes>, OllamaBytesState<S>)>>,
 > {
     #[pin]
-    inner: Unfold<OllamaBytesState<S>, fn(OllamaBytesState<S>) -> Fut, Fut>,
+    inner: OllamaBytesStateFold<S, Fut>,
     /// Fuse
     is_done: bool,
 }
@@ -226,7 +225,7 @@ impl<
     }
 }
 
-pub fn get_ollama_stream<S: Stream<Item = ReqwestResult> + Unpin + 'static>(
+pub(crate) fn get_ollama_stream<S: Stream<Item = ReqwestResult> + Unpin + 'static>(
     model_id: String,
     bytes_stream: S,
 ) -> impl Stream<Item = anyhow::Result<Bytes>> {

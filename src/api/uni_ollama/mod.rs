@@ -2,12 +2,12 @@ use std::{collections::HashMap, sync::Arc};
 
 use parking_lot::RwLock;
 
-pub mod chat;
-pub mod tag;
+pub(crate) mod chat;
+pub(crate) mod tag;
 
 /// A struct for make a request to the chat api
 #[derive(Debug, Clone)]
-pub struct ModelInfo {
+pub(crate) struct ModelInfo {
     /// Model name for the api call
     pub name: String,
     /// To find actual api_key in [`UniModelsInfo::api_keys`]
@@ -15,7 +15,7 @@ pub struct ModelInfo {
 }
 
 #[derive(Debug, Clone)]
-pub enum ApiKeyProvider {
+pub(crate) enum ApiKeyProvider {
     Aliyun,
     Tencent,
     Bytedance,
@@ -29,14 +29,14 @@ impl Default for ApiKeyProvider {
 
 /// A struct that contains the api_key and the provider of the api_key
 #[derive(Debug, Default, Clone)]
-pub struct ApiKeyInfo {
+pub(crate) struct ApiKeyInfo {
     pub api_key: String,
     pub provider: ApiKeyProvider,
 }
 
 /// A struct that contains all the information about the models and their api_keys
 #[derive(Debug, Default, Clone)]
-pub struct UniModelsInfo {
+pub(crate) struct UniModelsInfo {
     /// A mapping of unique names representing api_keys to their actual api_key values,
     /// such as `aliyun: ApiKeyInfo { api_key: xxx, provider: Aliyun }`
     pub api_keys: HashMap<String, ApiKeyInfo>,
@@ -45,4 +45,4 @@ pub struct UniModelsInfo {
     pub models: HashMap<String, ModelInfo>,
 }
 
-pub type UniModelInfoRef = Arc<RwLock<UniModelsInfo>>;
+pub(crate) type UniModelInfoRef = Arc<RwLock<UniModelsInfo>>;

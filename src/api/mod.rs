@@ -1,4 +1,3 @@
-use anyhow::Context;
 use axum::response::{IntoResponse, Response};
 use chrono::{Local, SecondsFormat};
 use reqwest::StatusCode;
@@ -37,12 +36,17 @@ pub(crate) struct Usage {
 #[derive(Deserialize, Debug, Default)]
 pub(crate) struct ApiResponse {
     pub choices: Vec<Choice>,
+    #[allow(unused)]
     pub object: Option<String>,
     pub usage: Option<Usage>,
+    #[allow(unused)]
     #[serde(default)]
     pub created: u64,
+    #[allow(unused)]
     pub system_fingerprint: Option<String>,
+    #[allow(unused)]
     pub model: Option<String>,
+    #[allow(unused)]
     pub id: Option<String>,
 }
 
@@ -72,28 +76,6 @@ pub(crate) struct OllamaResponse {
 }
 
 impl OllamaResponse {
-    pub(crate) fn thinking_start(model: &str) -> Self {
-        let mut ret = Self::default();
-        ret.model = model.to_string();
-        ret.message = Some(Message {
-            role: "asistant".to_string(),
-            content: "<think>".to_string(),
-            images: None,
-        });
-        ret
-    }
-
-    pub(crate) fn thinking_end(model: &str) -> Self {
-        let mut ret = Self::default();
-        ret.model = model.to_string();
-        ret.message = Some(Message {
-            role: "asistant".to_string(),
-            content: "</think>".to_string(),
-            images: None,
-        });
-        ret
-    }
-
     pub(crate) fn add_modle_and_message(&mut self, model: &str, message: Message) {
         self.model = model.to_string();
         self.message = Some(message);
@@ -169,7 +151,7 @@ impl Default for OllamaResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Message {
+pub(crate) struct Message {
     pub role: String,
     pub content: String,
     #[serde(skip_serializing_if = "Option::is_none")]
