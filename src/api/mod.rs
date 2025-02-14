@@ -1,7 +1,7 @@
 use axum::response::{IntoResponse, Response};
 use chrono::{Local, SecondsFormat};
 use reqwest::StatusCode;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 
 pub(crate) mod uni_ollama;
@@ -12,10 +12,25 @@ pub(super) mod deepseek;
 pub(super) mod siliconflow;
 pub(super) mod tencent;
 
+fn null_to_default<'de, D, T>(deserde: D) -> Result<T, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Default + Deserialize<'de>,
+{
+    let opt = Option::deserialize(deserde)?;
+    Ok(opt.unwrap_or_default())
+}
+
+fn default_role() -> String {
+    "assistant".to_string()
+}
+
 #[derive(Deserialize, Debug, Default)]
 pub(crate) struct Delta {
+    #[serde(deserialize_with = "null_to_default")]
     pub content: String,
     pub reasoning_content: Option<String>,
+    #[serde(default = "default_role")]
     pub role: String,
 }
 
@@ -60,8 +75,7 @@ pub(crate) struct ApiResponse {
 pub(crate) struct OllamaResponse {
     pub model: String,
     pub created_at: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub message: Option<Message>,
+    pub message: Message,
     pub done: bool,
     /// The meaning of this value is now changed to [`Usage::total_tokens`] here
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -76,14 +90,14 @@ pub(crate) struct OllamaResponse {
     /// The meaning of this value is now changed to [`Usage::completion_tokens`] here
     #[serde(skip_serializing_if = "Option::is_none")]
     pub eval_count: Option<u32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub eval_duration: Option<u32>,
+    /// Total time consumed by streaming API calls
+    pub eval_duration: u32,
 }
 
 impl OllamaResponse {
     pub(crate) fn add_modle_and_message(&mut self, model: &str, message: Message) {
         self.model = model.to_string();
-        self.message = Some(message);
+        self.message = message;
     }
 
     pub(crate) fn add_usage(&mut self, usage: &Usage) {
@@ -117,11 +131,12 @@ pub(crate) fn gen_ollama_think_end_message(model_id: &str) -> String {
     )
 }
 
-pub(crate) fn gen_last_message(model_id: &str, usage: &Usage) -> String {
+pub(crate) fn gen_last_message(model_id: &str, usage: &Usage, eval_dur: u32) -> String {
     let mut resp = OllamaResponse::default();
     resp.add_usage(usage);
     resp.model = model_id.to_string();
     resp.done = true;
+    resp.eval_duration = eval_dur;
     serde_json::to_string(&resp).expect("gen last message never fails")
 }
 
@@ -155,8 +170,9 @@ impl Default for OllamaResponse {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub(crate) struct Message {
+    #[serde(default = "default_role")]
     pub role: String,
     pub content: String,
     #[serde(skip_serializing_if = "Option::is_none")]

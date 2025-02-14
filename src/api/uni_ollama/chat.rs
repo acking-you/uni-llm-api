@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use anyhow::Context;
-use axum::{extract::State, response::Response, Json};
+use axum::{extract::State, response::Response};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -13,6 +13,7 @@ use crate::{
 pub(crate) struct ChatRequest {
     pub model: String,
     pub messages: Vec<Message>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     #[serde(default)]
     pub tools: Vec<Tool>,
     #[allow(unused)]
@@ -87,8 +88,9 @@ fn default_keep_alive() -> String {
 /// See [ollama chat api](https://github.com/ollama/ollama/blob/main/docs/api.md#generate-a-chat-completion)
 pub(crate) async fn api_chat(
     State(state): State<SharedState>,
-    Json(payload): Json<ChatRequest>,
+    body: String,
 ) -> Result<Response, AppError> {
+    let payload: ChatRequest = serde_json::from_str(&body).context("Get ChatRequest")?;
     let SharedState {
         client,
         model_config,

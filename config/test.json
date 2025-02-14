@@ -1,0 +1,18 @@
+{
+    "api_keys": {
+        "test_api_key": {
+            "api_key": "xxxxx",
+            "provider": "Aliyun"
+        }
+    },
+    "models": {
+        "aliyun/deepseek-r1": {
+            "name": "deepseek-r1",
+            "api_key_id": "test_api_key"
+        },
+        "aliyun/qwen-max-latest": {
+            "name": "qwen-max-latest",
+            "api_key_id": "test_api_key"
+        }
+    }
+}

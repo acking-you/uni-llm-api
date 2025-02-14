@@ -2,6 +2,7 @@
 use std::future::Future;
 use std::task::ready;
 use std::task::Poll;
+use std::time::Instant;
 
 use anyhow::anyhow;
 use anyhow::Context;
@@ -21,6 +22,7 @@ use crate::api::ApiResponse;
 use crate::api::Message;
 use crate::api::Usage;
 
+#[derive(Debug)]
 enum ChatRespStatus {
     /// Initial state
     Init,
@@ -36,6 +38,7 @@ enum ChatRespStatus {
 struct OllamaBytesState<S> {
     status: ChatRespStatus,
     model_id: String,
+    ins: Instant,
     inner: S,
 }
 
@@ -55,7 +58,7 @@ impl<S: Stream<Item = ReqwestResult> + Unpin> OllamaBytesState<S> {
         }
     }
 
-    #[instrument(skip(self, chunk))]
+    #[instrument(skip(self, chunk), err)]
     pub async fn process_msg(
         &mut self,
         chunk: ReqwestResult,
@@ -69,6 +72,7 @@ impl<S: Stream<Item = ReqwestResult> + Unpin> OllamaBytesState<S> {
         };
 
         let chunk_str = String::from_utf8_lossy(&chunk);
+        tracing::debug!("chunk_str:{chunk_str}");
         let mut resp_chunk_buf = BytesMut::with_capacity(128);
         // Handle SSE format data (possibly multiple events in one chunk)
         let mut response = ApiResponse::default();
@@ -81,14 +85,14 @@ impl<S: Stream<Item = ReqwestResult> + Unpin> OllamaBytesState<S> {
                     let msg = gen_last_message(
                         &self.model_id,
                         &response.usage.unwrap_or(Usage::default()),
+                        self.ins.elapsed().as_millis() as u32,
                     );
                     resp_chunk_buf.extend_from_slice(msg.as_bytes());
                     resp_chunk_buf.extend_from_slice(b"\n");
                     break;
                 } else {
                     // Parse JSON
-                    response = serde_json::from_str::<ApiResponse>(event_data)
-                        .context("parsing ApiResponse")?;
+                    response = serde_json::from_str::<ApiResponse>(event_data)?;
                 }
 
                 let choice = response
@@ -235,6 +239,7 @@ pub(crate) fn get_ollama_stream<S: Stream<Item = ReqwestResult> + Unpin + 'stati
                 status: ChatRespStatus::Init,
                 model_id,
                 inner: bytes_stream,
+                ins: Instant::now(),
             },
             OllamaBytesState::poll_next,
         ),

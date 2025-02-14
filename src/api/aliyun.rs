@@ -8,12 +8,25 @@ use reqwest::{
     header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE},
     Client,
 };
-use serde_json::json;
+use serde::Serialize;
 use tracing::instrument;
 
 use crate::common::stream::get_ollama_stream;
 
-use super::{gen_ollama_message, uni_ollama::chat::ChatRequest, ApiResponse};
+use super::{
+    gen_ollama_message,
+    uni_ollama::chat::{ChatRequest, Message, Tool},
+    ApiResponse,
+};
+
+#[derive(Debug, Serialize)]
+struct AliyunReq {
+    model: String,
+    messages: Vec<Message>,
+    stream: bool,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    tools: Vec<Tool>,
+}
 
 pub(crate) async fn chat_completion(
     chat_req: ChatRequest,
@@ -30,12 +43,13 @@ pub(crate) async fn chat_completion(
     headers.insert(ACCEPT, HeaderValue::from_static("text/event-stream"));
 
     // Construct request body
-    let mut body = json!({
-        "model": model_name,
-        "messages": chat_req.messages,
-        "stream": chat_req.stream,
-        "tools": chat_req.tools,
-    });
+    let req = AliyunReq {
+        model: model_name,
+        messages: chat_req.messages,
+        stream: chat_req.stream,
+        tools: chat_req.tools,
+    };
+    let mut body = serde_json::to_value(&req).context("construct aliyun req")?;
 
     if let Some(options) = chat_req.options {
         options.into_iter().for_each(|(k, v)| {
@@ -44,6 +58,8 @@ pub(crate) async fn chat_completion(
                 .insert(k, v);
         });
     }
+
+    tracing::info!("headers:{headers:?}\nbody:{body}");
 
     let api_resp = client
         .post("https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions") // API URL

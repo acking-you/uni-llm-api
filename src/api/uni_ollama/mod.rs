@@ -7,7 +7,7 @@ pub(crate) mod chat;
 pub(crate) mod tag;
 
 /// A struct for make a request to the chat api
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ModelInfo {
     /// Model name for the api call
     pub name: String,
@@ -60,3 +60,27 @@ pub struct UniModelsInfo {
 }
 
 pub(crate) type UniModelInfoRef = Arc<RwLock<UniModelsInfo>>;
+
+#[cfg(test)]
+mod tests {
+    use std::{collections::HashMap, fs::OpenOptions};
+
+    use super::{ApiKeyInfo, ModelInfo, UniModelsInfo};
+
+    #[test]
+    fn test_json() {
+        let models_info = UniModelsInfo {
+            api_keys: HashMap::from([(
+                "test_api_key".to_string(),
+                ApiKeyInfo::default(),
+            )]),
+            models: HashMap::from([("test_model_id".to_string(), ModelInfo::default())]),
+        };
+        let writer = OpenOptions::new()
+            .truncate(true)
+            .write(true)
+            .open("./test.json")
+            .unwrap();
+        serde_json::to_writer_pretty(writer, &models_info).unwrap();
+    }
+}
