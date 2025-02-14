@@ -1,22 +1,30 @@
-use axum::Json;
+use axum::{extract::State, Json};
 use serde::Serialize;
 
+use crate::SharedState;
+
 #[derive(Debug, Serialize)]
-pub struct ModelInfoResp {
+pub(crate) struct ModelInfoResp {
     /// A unique name used to identify the calling model,
     /// corresponding to the key in [`super::UniModelsInfo::models`]
     name: String,
 }
 
 #[derive(Debug, Serialize)]
-pub struct ApiTagsResponse {
+pub(crate) struct ApiTagsResponse {
     models: Vec<ModelInfoResp>,
 }
 
-pub async fn api_tags() -> Json<ApiTagsResponse> {
-    Json(ApiTagsResponse {
-        models: vec![ModelInfoResp {
-            name: "aliyun/qwen-max".to_string(),
-        }],
-    })
+pub(crate) async fn api_tags(State(state): State<SharedState>) -> Json<ApiTagsResponse> {
+    let models = {
+        let guard = state.model_config.read();
+        guard
+            .models
+            .keys()
+            .map(|v| ModelInfoResp {
+                name: v.to_string(),
+            })
+            .collect()
+    };
+    Json(ApiTagsResponse { models })
 }

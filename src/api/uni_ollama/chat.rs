@@ -15,12 +15,14 @@ pub(crate) struct ChatRequest {
     pub messages: Vec<Message>,
     #[serde(default)]
     pub tools: Vec<Tool>,
+    #[allow(unused)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub format: Option<HashMap<String, serde_json::Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub options: Option<HashMap<String, serde_json::Value>>,
     #[serde(default = "default_stream")]
     pub stream: bool,
+    #[allow(unused)]
     #[serde(default = "default_keep_alive")]
     pub keep_alive: String,
 }

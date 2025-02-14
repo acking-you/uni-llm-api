@@ -1,6 +1,6 @@
 //! A binary for the Uni Llama project
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
-use uni_llm_api::run_server;
+use uni_llm_api::{run_server, UniModelsInfo};
 
 #[tokio::main]
 async fn main() {
@@ -12,5 +12,7 @@ async fn main() {
         .with(tracing_subscriber::fmt::layer().pretty())
         .init();
 
-    run_server("0.0.0.0:12345").await.unwrap();
+    run_server(UniModelsInfo::default(), "0.0.0.0:12345")
+        .await
+        .unwrap();
 }

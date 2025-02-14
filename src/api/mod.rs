@@ -2,6 +2,7 @@ use axum::response::{IntoResponse, Response};
 use chrono::{Local, SecondsFormat};
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 pub(crate) mod uni_ollama;
 
@@ -9,6 +10,7 @@ pub(super) mod aliyun;
 pub(super) mod bytedance;
 pub(super) mod deepseek;
 pub(super) mod siliconflow;
+pub(super) mod tencent;
 
 #[derive(Deserialize, Debug, Default)]
 pub(crate) struct Delta {
@@ -20,9 +22,12 @@ pub(crate) struct Delta {
 #[derive(Deserialize, Debug, Default)]
 pub(crate) struct Choice {
     pub delta: Delta,
+    #[allow(unused)]
     pub finish_reason: Option<String>,
+    #[allow(unused)]
     pub index: u32,
-    pub logprobs: Option<String>,
+    #[allow(unused)]
+    pub logprobs: Option<Value>,
 }
 
 #[derive(Deserialize, Debug, Default)]

@@ -6,7 +6,10 @@ use std::fmt::Debug;
 use tokio::net::ToSocketAddrs;
 
 use api::uni_ollama::tag::api_tags;
-use api::uni_ollama::UniModelsInfo;
+pub use api::uni_ollama::ApiKeyInfo;
+pub use api::uni_ollama::ApiKeyProvider;
+pub use api::uni_ollama::ModelInfo;
+pub use api::uni_ollama::UniModelsInfo;
 use axum::{
     routing::{get, post},
     Router,
@@ -22,9 +25,12 @@ pub(crate) struct SharedState {
 }
 
 /// Run the server
-pub async fn run_server<A: ToSocketAddrs + Debug>(addr: A) -> anyhow::Result<()> {
+pub async fn run_server<A: ToSocketAddrs + Debug>(
+    init_models_info: UniModelsInfo,
+    addr: A,
+) -> anyhow::Result<()> {
     let client = Client::new();
-    let model_config = UniModelInfoRef::new(RwLock::new(UniModelsInfo::default()));
+    let model_config = UniModelInfoRef::new(RwLock::new(init_models_info));
     let shared_state = SharedState {
         client,
         model_config,
