@@ -26,6 +26,10 @@ clap = { version = "4.4.8", features = ["derive"] }
 dirs = "6.0.0"
 shellexpand = "3.1.0"
 
+[[bin]]
+name = "uni-llm"
+path = "src/bin/uni-llm.rs"
+
 [lints.rustdoc]
 broken_intra_doc_links = "deny"
 bare_urls = "deny"
