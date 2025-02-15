@@ -6,8 +6,9 @@ use crate::SharedState;
 #[derive(Debug, Serialize)]
 pub(crate) struct ModelInfoResp {
     /// A unique name used to identify the calling model,
-    /// corresponding to the key in [`super::UniModelsInfo::models`]
+    /// corresponding to the key in [`crate::UniModelsInfo::models`]
     name: String,
+    model: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -23,6 +24,7 @@ pub(crate) async fn api_tags(State(state): State<SharedState>) -> Json<ApiTagsRe
             .keys()
             .map(|v| ModelInfoResp {
                 name: v.to_string(),
+                model: v.to_string(),
             })
             .collect()
     };

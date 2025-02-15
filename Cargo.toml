@@ -22,6 +22,9 @@ parking_lot = "0.12.3"
 bytes = "1.10.0"
 chrono = "0.4.39"
 pin-project = "1.1.9"
+clap = { version = "4.4.8", features = ["derive"] }
+dirs = "6.0.0"
+shellexpand = "3.1.0"
 
 [lints.rustdoc]
 broken_intra_doc_links = "deny"

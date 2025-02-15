@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use anyhow::{bail, Context};
 use axum::{
     body::Body,
@@ -6,30 +8,32 @@ use axum::{
 };
 use reqwest::{
     header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE},
-    Client,
+    Client, IntoUrl,
 };
 use serde::Serialize;
 use tracing::instrument;
 
-use crate::common::stream::get_ollama_stream;
-
-use super::{
-    gen_ollama_message,
-    uni_ollama::chat::{ChatRequest, Message, Tool},
-    ApiResponse,
+use crate::{
+    api::uni_ollama::message::{
+        gen_ollama_message, OllamaChatRequest, ReqMessage, RespMessage, Tool,
+    },
+    common::stream::get_ollama_stream,
 };
 
+use super::message::ApiResponse;
+
 #[derive(Debug, Serialize)]
-struct AliyunReq {
-    model: String,
-    messages: Vec<Message>,
-    stream: bool,
+pub(crate) struct CommonReq {
+    pub model: String,
+    pub messages: Vec<ReqMessage>,
+    pub stream: bool,
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    tools: Vec<Tool>,
+    pub tools: Vec<Tool>,
 }
 
-pub(crate) async fn chat_completion(
-    chat_req: ChatRequest,
+pub(crate) async fn chat_completion<U: IntoUrl + Debug>(
+    url: U,
+    chat_req: OllamaChatRequest,
     model_id: String,
     model_name: String,
     api_key: String,
@@ -40,16 +44,18 @@ pub(crate) async fn chat_completion(
     headers.insert(AUTHORIZATION, HeaderValue::from_str(&api_key)?);
     headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
     // Add Accept header to receive stream response
-    headers.insert(ACCEPT, HeaderValue::from_static("text/event-stream"));
+    if chat_req.stream {
+        headers.insert(ACCEPT, HeaderValue::from_static("text/event-stream"));
+    }
 
     // Construct request body
-    let req = AliyunReq {
+    let req = CommonReq {
         model: model_name,
         messages: chat_req.messages,
         stream: chat_req.stream,
         tools: chat_req.tools,
     };
-    let mut body = serde_json::to_value(&req).context("construct aliyun req")?;
+    let mut body = serde_json::to_value(&req).context("construct common req")?;
 
     if let Some(options) = chat_req.options {
         options.into_iter().for_each(|(k, v)| {
@@ -59,10 +65,10 @@ pub(crate) async fn chat_completion(
         });
     }
 
-    tracing::info!("headers:{headers:?}\nbody:{body}");
+    tracing::info!("url:{url:?}\nheaders:{headers:?}\nbody:{body}");
 
     let api_resp = client
-        .post("https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions") // API URL
+        .post(url) // API URL
         .headers(headers)
         .json(&body)
         .send()
@@ -84,7 +90,7 @@ pub(crate) async fn chat_completion(
 }
 
 #[instrument(skip(api_resp))]
-pub(crate) async fn process_streaming(
+async fn process_streaming(
     model_id: String,
     api_resp: reqwest::Response,
 ) -> anyhow::Result<Response> {
@@ -106,7 +112,7 @@ pub(crate) async fn process_streaming(
 }
 
 #[instrument(skip(api_resp))]
-pub(crate) async fn process_non_streaming(
+async fn process_non_streaming(
     model_id: String,
     api_resp: reqwest::Response,
 ) -> anyhow::Result<Response> {
@@ -129,8 +135,8 @@ pub(crate) async fn process_non_streaming(
 
     let ollama_resp = gen_ollama_message(
         &model_id,
-        super::Message {
-            role: delta.role.clone(),
+        RespMessage {
+            role: delta.role,
             content,
             images: None,
         },

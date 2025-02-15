@@ -1,4 +1,4 @@
-//! Implement a unified streaming ollama API
+//! Implement a unified streaming ollama API for (OpenAI Compatible)
 use std::future::Future;
 use std::task::ready;
 use std::task::Poll;
@@ -14,13 +14,13 @@ use futures::StreamExt;
 use pin_project::pin_project;
 use tracing::instrument;
 
-use crate::api::gen_last_message;
-use crate::api::gen_ollama_message;
-use crate::api::gen_ollama_think_end_message;
-use crate::api::gen_ollama_think_start_message;
-use crate::api::ApiResponse;
-use crate::api::Message;
-use crate::api::Usage;
+use crate::api::provider::message::ApiResponse;
+use crate::api::provider::message::Usage;
+use crate::api::uni_ollama::message::gen_last_message;
+use crate::api::uni_ollama::message::gen_ollama_message;
+use crate::api::uni_ollama::message::gen_ollama_think_end_message;
+use crate::api::uni_ollama::message::gen_ollama_think_start_message;
+use crate::api::uni_ollama::message::RespMessage;
 
 #[derive(Debug)]
 enum ChatRespStatus {
@@ -103,8 +103,8 @@ impl<S: Stream<Item = ReqwestResult> + Unpin> OllamaBytesState<S> {
                     ($msg:expr) => {{
                         let msg = gen_ollama_message(
                             &self.model_id,
-                            Message {
-                                role: choice.delta.role.clone(),
+                            RespMessage {
+                                role: choice.delta.role,
                                 content: $msg,
                                 images: None,
                             },
@@ -166,7 +166,9 @@ impl<S: Stream<Item = ReqwestResult> + Unpin> OllamaBytesState<S> {
                         }
                     }
                     ChatRespStatus::ReasoningThinking => {
-                        if !choice.delta.content.is_empty() {
+                        if !choice.delta.content.is_empty()
+                            || choice.delta.reasoning_content.is_none()
+                        {
                             append_thinking_end_msg!(choice.delta.content.clone());
                             self.status = ChatRespStatus::ThinkFinished;
                         } else {
