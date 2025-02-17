@@ -134,7 +134,7 @@ pub(crate) async fn chat_completion(
     let req = GeminiRequest {
         contents,
         system_instruction,
-        generation_config: chat_req.options,
+        generation_config: None, // TODO: Modify `chat_req.options` based on [doc](https://ai.google.dev/gemini-api/docs/text-generation?hl=zh-cn&lang=rest#configure)
     };
 
     tracing::info!("url:{url:?}\nheaders:{headers:?}\nbody:{req:?}");
@@ -161,26 +161,28 @@ pub(crate) async fn chat_completion(
     }
 }
 
-pub(crate) fn gen_ollama_message(
+pub(crate) fn gen_ollama_message(model_id: &str, msg: RespMessage) -> String {
+    let mut resp = OllamaChatResponse::default();
+    resp.add_modle_and_message(model_id, msg);
+    serde_json::to_string(&resp).expect("gen ollama response nerver fails")
+}
+pub(crate) fn gen_last_ollama_message(
     model_id: &str,
-    msg: RespMessage,
     usage: UsageMetadata,
     done_dur: u32,
 ) -> String {
     let mut resp = OllamaChatResponse::default();
-    resp.add_modle_and_message(model_id, msg);
 
+    resp.fill_option();
     let UsageMetadata {
         prompt_token_count,
         total_token_count,
     } = usage;
-
-    resp.prompt_eval_count = Some(prompt_token_count as u32);
+    resp.model = model_id.to_string();
+    resp.done = true;
     resp.eval_count = Some(total_token_count as u32);
-    if done_dur != 0 {
-        resp.done = true;
-        resp.eval_duration = done_dur;
-    }
+    resp.prompt_eval_count = Some(prompt_token_count as u32);
+    resp.eval_duration = Some(done_dur);
 
     serde_json::to_string(&resp).expect("gen ollama response nerver fails")
 }
@@ -226,23 +228,33 @@ async fn process_non_streaming(
         .iter()
         .for_each(|c| content.push_str(&c.text));
 
-    let ollama_resp = gen_ollama_message(
-        &model_id,
-        RespMessage {
-            role: Role::Assistant,
-            content,
-            images: None,
-        },
-        api_resp.usage_metadata,
-        1,
-    );
+    let mut resp = OllamaChatResponse::default();
 
-    let mut response_builder = Response::builder().status(200);
+    resp.fill_option();
+    let UsageMetadata {
+        prompt_token_count,
+        total_token_count,
+    } = api_resp.usage_metadata;
+    resp.model = model_id.to_string();
+    resp.done = true;
+    resp.eval_count = Some(total_token_count as u32);
+    resp.prompt_eval_count = Some(prompt_token_count as u32);
+    resp.message = RespMessage {
+        role: Role::Assistant,
+        content,
+        images: None,
+    };
+
+    let ollama_resp =
+        serde_json::to_string(&resp).expect("gen ollama response nerver fails");
+
+    tracing::debug!("response_body:{ollama_resp}");
     let mut header = HeaderMap::new();
     header.append(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-    *response_builder.headers_mut().unwrap() = header;
-    let res = response_builder
+    let mut resp = Response::builder()
+        .status(200)
         .body(Body::from(ollama_resp))
         .context("Construct response")?;
-    Ok(res)
+    *resp.headers_mut() = header;
+    Ok(resp)
 }

@@ -14,6 +14,7 @@ use futures::StreamExt;
 use pin_project::pin_project;
 use tracing::instrument;
 
+use crate::api::provider::google::gen_last_ollama_message;
 use crate::api::provider::google::gen_ollama_message;
 use crate::api::provider::google::GeminiResponse;
 use crate::api::uni_ollama::message::RespMessage;
@@ -79,8 +80,9 @@ impl<S: Stream<Item = ReqwestResult> + Unpin> OllamaBytesState<S> {
                     .context("parts.fisrt() nerver empty")?
                     .text
                     .clone();
+
                 macro_rules! append_msg {
-                    ($msg:expr,$done:expr) => {{
+                    ($msg:expr) => {{
                         let msg = gen_ollama_message(
                             &self.model_id,
                             RespMessage {
@@ -88,9 +90,12 @@ impl<S: Stream<Item = ReqwestResult> + Unpin> OllamaBytesState<S> {
                                 content: $msg,
                                 images: None,
                             },
-                            response.usage_metadata,
-                            $done,
                         );
+                        resp_chunk_buf.extend_from_slice(msg.as_bytes());
+                        resp_chunk_buf.extend_from_slice(b"\n");
+                    }};
+                    ($usage:expr,$dur:expr) => {{
+                        let msg = gen_last_ollama_message(&self.model_id, $usage, $dur);
                         resp_chunk_buf.extend_from_slice(msg.as_bytes());
                         resp_chunk_buf.extend_from_slice(b"\n");
                     }};
@@ -99,10 +104,11 @@ impl<S: Stream<Item = ReqwestResult> + Unpin> OllamaBytesState<S> {
                 match &self.status {
                     ChatRespStatus::Chatting => {
                         if candidate.finish_reason.is_none() {
-                            append_msg!(text, 0);
+                            append_msg!(text);
                         } else {
                             let dur = self.ins.elapsed().as_millis() as u32;
-                            append_msg!(text, dur + 1);
+                            append_msg!(text);
+                            append_msg!(response.usage_metadata, dur + 1);
                             tracing::info!("finished chatting: chunk:{chunk_str}");
                             self.status = ChatRespStatus::ChatFinished;
                         }

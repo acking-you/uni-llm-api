@@ -15,6 +15,9 @@ pub(crate) struct Delta {
 
 #[derive(Deserialize, Debug, Default)]
 pub(crate) struct Choice {
+    /// `delta` For streaming api
+    /// `message` For non streaming api
+    #[serde(alias = "message")]
     pub delta: Delta,
     #[allow(unused)]
     pub finish_reason: Option<String>,

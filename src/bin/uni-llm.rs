@@ -18,7 +18,7 @@ struct Cli {
     #[arg(
         short,
         long,
-        default_value = "12345",
+        default_value = "11434",
         value_parser = clap::value_parser!(u16).range(1..=65535)
     )]
     port: u16,

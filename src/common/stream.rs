@@ -84,6 +84,7 @@ impl<S: Stream<Item = ReqwestResult> + Unpin> OllamaBytesState<S> {
                     self.status = ChatRespStatus::ChatFinished;
                     let msg = gen_last_message(
                         &self.model_id,
+                        None,
                         &response.usage.unwrap_or(Usage::default()),
                         self.ins.elapsed().as_millis() as u32,
                     );
@@ -108,7 +109,6 @@ impl<S: Stream<Item = ReqwestResult> + Unpin> OllamaBytesState<S> {
                                 content: $msg,
                                 images: None,
                             },
-                            response.usage.as_ref(),
                         );
                         resp_chunk_buf.extend_from_slice(msg.as_bytes());
                         resp_chunk_buf.extend_from_slice(b"\n");
@@ -149,11 +149,16 @@ impl<S: Stream<Item = ReqwestResult> + Unpin> OllamaBytesState<S> {
                             append_thinking_start_msg!(msg);
                             self.status = ChatRespStatus::ReasoningThinking;
                         } else if !choice.delta.content.is_empty() {
+                            append_msg!(choice.delta.content.clone());
                             self.status = ChatRespStatus::ThinkFinished;
-                        } else {
+                        } else if choice.delta.content.is_empty() {
                             tracing::info!(
                                 "We will do nothing when it is empty msg: {chunk_str}"
                             );
+                        } else {
+                            tracing::info!("Maybe this branch nerver hits: {chunk_str}");
+                            append_msg!(choice.delta.content.clone());
+                            self.status = ChatRespStatus::ThinkFinished;
                         }
                     }
                     ChatRespStatus::ContentThinking => {

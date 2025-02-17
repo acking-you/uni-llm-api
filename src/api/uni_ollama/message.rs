@@ -7,6 +7,12 @@ use serde::{Deserialize, Serialize};
 
 use crate::api::provider::message::Usage;
 
+#[derive(Debug, Serialize, Clone, Copy)]
+#[serde(rename_all = "lowercase")]
+pub(crate) enum DoneReason {
+    Stop,
+}
+
 /// Ollama response, see [link](https://github.com/ollama/ollama/blob/main/docs/api.md#response-10)
 #[derive(Debug, Serialize)]
 pub(crate) struct OllamaChatResponse {
@@ -14,6 +20,8 @@ pub(crate) struct OllamaChatResponse {
     pub created_at: String,
     pub message: RespMessage,
     pub done: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub done_reason: Option<DoneReason>,
     /// The meaning of this value is now changed to [`Usage::total_tokens`] here
     #[serde(skip_serializing_if = "Option::is_none")]
     pub total_duration: Option<u32>,
@@ -28,7 +36,8 @@ pub(crate) struct OllamaChatResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub eval_count: Option<u32>,
     /// Total time consumed by streaming API calls
-    pub eval_duration: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub eval_duration: Option<u32>,
 }
 
 impl OllamaChatResponse {
@@ -42,6 +51,16 @@ impl OllamaChatResponse {
         self.prompt_eval_count = Some(usage.prompt_tokens);
         self.eval_count = Some(usage.completion_tokens);
     }
+
+    pub(crate) fn fill_option(&mut self) {
+        self.done_reason = Some(DoneReason::Stop);
+        self.total_duration = Some(0);
+        self.load_duration = Some(0);
+        self.prompt_eval_count = Some(0);
+        self.prompt_eval_duration = Some(0);
+        self.eval_count = Some(0);
+        self.eval_duration = Some(0);
+    }
 }
 
 pub(crate) fn gen_ollama_think_start_message(model_id: &str) -> String {
@@ -52,7 +71,6 @@ pub(crate) fn gen_ollama_think_start_message(model_id: &str) -> String {
             content: "<think>".to_string(),
             images: None,
         },
-        None,
     )
 }
 
@@ -64,29 +82,31 @@ pub(crate) fn gen_ollama_think_end_message(model_id: &str) -> String {
             content: "</think>".to_string(),
             images: None,
         },
-        None,
     )
 }
 
-pub(crate) fn gen_last_message(model_id: &str, usage: &Usage, eval_dur: u32) -> String {
+pub(crate) fn gen_last_message(
+    model_id: &str,
+    message: Option<RespMessage>,
+    usage: &Usage,
+    eval_dur: u32,
+) -> String {
     let mut resp = OllamaChatResponse::default();
+    if let Some(msg) = message {
+        resp.add_modle_and_message(model_id, msg);
+    } else {
+        resp.model = model_id.to_string();
+    }
+    resp.fill_option();
     resp.add_usage(usage);
-    resp.model = model_id.to_string();
     resp.done = true;
-    resp.eval_duration = eval_dur;
+    resp.eval_duration = Some(eval_dur);
     serde_json::to_string(&resp).expect("gen last message never fails")
 }
 
-pub(crate) fn gen_ollama_message(
-    model_id: &str,
-    msg: RespMessage,
-    usage: Option<&Usage>,
-) -> String {
+pub(crate) fn gen_ollama_message(model_id: &str, msg: RespMessage) -> String {
     let mut resp = OllamaChatResponse::default();
     resp.add_modle_and_message(model_id, msg);
-    if let Some(usage) = usage {
-        resp.add_usage(usage);
-    }
     serde_json::to_string(&resp).expect("gen ollama response nerver fails")
 }
 
@@ -97,6 +117,7 @@ impl Default for OllamaChatResponse {
             created_at: Local::now().to_rfc3339_opts(SecondsFormat::Nanos, true),
             message: Default::default(),
             done: false,
+            done_reason: None,
             total_duration: Default::default(),
             load_duration: Default::default(),
             prompt_eval_count: Default::default(),

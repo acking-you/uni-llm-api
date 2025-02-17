@@ -1,6 +1,7 @@
 //! implements the API for the Uni Llama project
 use api::uni_ollama::{chat::api_chat, config::UniModelInfoRef};
 use axum::Json;
+use middleware::cors::CorsLayer;
 use parking_lot::RwLock;
 use reqwest::Client;
 use reqwest::ClientBuilder;
@@ -23,7 +24,8 @@ use axum::{
 };
 
 mod api;
-pub(crate) mod common;
+pub mod common;
+pub mod middleware;
 
 #[derive(Clone)]
 pub(crate) struct SharedState {
@@ -72,6 +74,7 @@ pub async fn run_server<A: ToSocketAddrs + Debug>(
 
     let app = Router::new()
         .nest("/api", api_routes) // logging so we can see whats going on
+        .layer(CorsLayer {})
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(DefaultMakeSpan::default().include_headers(true)),

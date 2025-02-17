@@ -15,12 +15,12 @@ use tracing::instrument;
 
 use crate::{
     api::uni_ollama::message::{
-        gen_ollama_message, OllamaChatRequest, ReqMessage, RespMessage, Tool,
+        gen_last_message, OllamaChatRequest, ReqMessage, RespMessage, Tool,
     },
     common::stream::get_ollama_stream,
 };
 
-use super::message::ApiResponse;
+use super::message::{ApiResponse, Usage};
 
 #[derive(Debug, Serialize)]
 pub(crate) struct CommonReq {
@@ -58,6 +58,7 @@ pub(crate) async fn chat_completion<U: IntoUrl + Debug>(
     let mut body = serde_json::to_value(&req).context("construct common req")?;
 
     if let Some(options) = chat_req.options {
+        // TODO: Insert options based on [doc](https://api-docs.deepseek.com/zh-cn/api/create-chat-completion)
         options.into_iter().for_each(|(k, v)| {
             body.as_object_mut()
                 .expect("as object nerver fails")
@@ -97,17 +98,16 @@ async fn process_streaming(
     let stream = api_resp.bytes_stream();
 
     let ollama_resp_stream = get_ollama_stream(model_id, stream);
-
-    let mut response_builder = Response::builder().status(200);
     let mut header = HeaderMap::new();
     header.append(
         CONTENT_TYPE,
         HeaderValue::from_static("application/x-ndjson"),
     );
-    *response_builder.headers_mut().unwrap() = header;
-    let res = response_builder
+    let mut res = Response::builder()
+        .status(200)
         .body(Body::from_stream(ollama_resp_stream))
         .context("Construct response")?;
+    *res.headers_mut() = header;
     Ok(res)
 }
 
@@ -133,22 +133,23 @@ async fn process_non_streaming(
     }
     content.push_str(&delta.content);
 
-    let ollama_resp = gen_ollama_message(
+    let ollama_resp = gen_last_message(
         &model_id,
-        RespMessage {
+        Some(RespMessage {
             role: delta.role,
             content,
             images: None,
-        },
-        api_resp.usage.as_ref(),
+        }),
+        api_resp.usage.as_ref().unwrap_or(&Usage::default()),
+        0,
     );
-
-    let mut response_builder = Response::builder().status(200);
+    tracing::debug!("response_body:{ollama_resp}");
     let mut header = HeaderMap::new();
     header.append(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-    *response_builder.headers_mut().unwrap() = header;
-    let res = response_builder
+    let mut res = Response::builder()
+        .status(200)
         .body(Body::from(ollama_resp))
         .context("Construct response")?;
+    *res.headers_mut() = header;
     Ok(res)
 }

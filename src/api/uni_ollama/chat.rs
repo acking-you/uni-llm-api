@@ -25,7 +25,6 @@ pub(crate) async fn api_chat(
         model_config,
         proxy_client,
     } = state;
-    tracing::info!("Received chat request: {:?}", payload);
     // Retrieve specific information about the calling model,
     // and invoke the corresponding interface to complete the API call based on the API provider
     let (model_id, model_name, api_info) = {
