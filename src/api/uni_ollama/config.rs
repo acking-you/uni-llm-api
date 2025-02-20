@@ -4,6 +4,8 @@ use std::{collections::HashMap, sync::Arc};
 
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
+use serde_with::serde_as;
+use serde_with::OneOrMany;
 
 /// A struct for make a request to the chat api
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -40,10 +42,16 @@ impl Default for ApiKeyProvider {
 }
 
 /// A struct that contains the api_key and the provider of the api_key
+#[serde_as]
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct ApiKeyInfo {
     /// The actual api_key value
-    pub api_key: String,
+    /// You can provide the API key as a single string or a list of strings.
+    /// For example, both `"api_key":"xxx"` and `"api_key":["xxx","xxx"]` are valid.
+    /// When providing multiple API keys, the system will select them using a round-robin approach
+    #[serde_as(as = "OneOrMany<_>")]
+    #[serde(default)]
+    pub api_key: Vec<String>,
     /// The provider of the api_key, such as `aliyun`, `tencent`, `bytedance`, `deepseek`
     ///
     /// ## See Also
@@ -53,6 +61,37 @@ pub struct ApiKeyInfo {
     pub provider: ApiKeyProvider,
     /// Whether the [`self`] needs a proxy to make a request
     #[serde(default)]
+    pub need_proxy: bool,
+    /// Nerver serde, just for internal use (used for round-robin)
+    #[serde(skip)]
+    pub cur_index: u32,
+}
+
+impl ApiKeyInfo {
+    /// Retrieves an API key from [`Self::api_key`] using a round-robin selection method
+    pub fn selected(&mut self) -> SelectedApiKeyInfo {
+        let index = self.cur_index;
+        self.cur_index += 1;
+        SelectedApiKeyInfo {
+            api_key: self.api_key[index as usize % self.api_key.len()].clone(),
+            provider: self.provider.clone(),
+            need_proxy: self.need_proxy,
+        }
+    }
+}
+
+/// ApiKeyInfo with the selected api_key
+pub struct SelectedApiKeyInfo {
+    /// The selected api_key value
+    pub api_key: String,
+    /// The provider of the api_key, such as `aliyun`, `tencent`, `bytedance`, `deepseek`
+    ///
+    /// ## See Also
+    ///
+    /// - [`ApiKeyProvider`]
+    ///
+    pub provider: ApiKeyProvider,
+    /// Whether the [`self`] needs a proxy to make a request
     pub need_proxy: bool,
 }
 
@@ -78,41 +117,46 @@ impl Default for UniModelsInfo {
                 map.insert(
                     "aliyun".to_string(),
                     ApiKeyInfo {
-                        api_key: "[YOUR-API-KEY]".to_string(),
+                        api_key: vec!["[YOUR-API-KEY]".to_string()],
                         provider: ApiKeyProvider::Aliyun,
                         need_proxy: false,
+                        cur_index: 0,
                     },
                 );
                 map.insert(
                     "bytedance".to_string(),
                     ApiKeyInfo {
-                        api_key: "[YOUR-API-KEY]".to_string(),
+                        api_key: vec!["[YOUR-API-KEY]".to_string()],
                         provider: ApiKeyProvider::Bytedance,
                         need_proxy: false,
+                        cur_index: 0,
                     },
                 );
                 map.insert(
                     "tencent".to_string(),
                     ApiKeyInfo {
-                        api_key: "[YOUR-API-KEY]".to_string(),
+                        api_key: vec!["[YOUR-API-KEY]".to_string()],
                         provider: ApiKeyProvider::Tencent,
                         need_proxy: false,
+                        cur_index: 0,
                     },
                 );
                 map.insert(
                     "siliconflow".to_string(),
                     ApiKeyInfo {
-                        api_key: "[YOUR-API-KEY]".to_string(),
+                        api_key: vec!["[YOUR-API-KEY]".to_string()],
                         provider: ApiKeyProvider::Siliconflow,
                         need_proxy: false,
+                        cur_index: 0,
                     },
                 );
                 map.insert(
                     "google".to_string(),
                     ApiKeyInfo {
-                        api_key: "[YOUR-API-KEY]".to_string(),
+                        api_key: vec!["[YOUR-API-KEY]".to_string()],
                         provider: ApiKeyProvider::Google,
                         need_proxy: true,
+                        cur_index: 0,
                     },
                 );
                 map

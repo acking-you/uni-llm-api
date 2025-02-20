@@ -140,18 +140,16 @@ impl<S: Stream<Item = ReqwestResult> + Unpin> OllamaBytesState<S> {
                             let msg = choice.delta.content.replace("<think>", "");
                             append_thinking_start_msg!(msg);
                             self.status = ChatRespStatus::ContentThinking;
-                        } else if choice.delta.reasoning_content.is_some() {
-                            let msg = choice
-                                .delta
-                                .reasoning_content
-                                .clone()
-                                .expect("nerver none checked by `is_some`");
+                        } else if !choice.delta.reasoning_content.is_empty() {
+                            let msg = choice.delta.reasoning_content.clone();
                             append_thinking_start_msg!(msg);
                             self.status = ChatRespStatus::ReasoningThinking;
                         } else if !choice.delta.content.is_empty() {
                             append_msg!(choice.delta.content.clone());
                             self.status = ChatRespStatus::ThinkFinished;
-                        } else if choice.delta.content.is_empty() {
+                        } else if choice.delta.content.is_empty()
+                            || choice.delta.reasoning_content.is_empty()
+                        {
                             tracing::info!(
                                 "We will do nothing when it is empty msg: {chunk_str}"
                             );
@@ -171,16 +169,11 @@ impl<S: Stream<Item = ReqwestResult> + Unpin> OllamaBytesState<S> {
                         }
                     }
                     ChatRespStatus::ReasoningThinking => {
-                        if !choice.delta.content.is_empty()
-                            || choice.delta.reasoning_content.is_none()
-                        {
+                        if !choice.delta.content.is_empty() {
                             append_thinking_end_msg!(choice.delta.content.clone());
                             self.status = ChatRespStatus::ThinkFinished;
                         } else {
-                            let msg = choice
-                                .delta
-                                .reasoning_content.clone()
-                                .context("As it is `ChatRespStatus::ReasoningThinking` state, `reasoning_content` should be `Some`")?;
+                            let msg = choice.delta.reasoning_content.clone();
                             append_msg!(msg);
                         }
                     }

@@ -126,9 +126,9 @@ async fn process_non_streaming(
         .first()
         .context("Must have at least one choice")?
         .delta;
-    if let Some(reason_content) = delta.reasoning_content.as_ref() {
+    if !delta.reasoning_content.is_empty() {
         content.push_str("<think>\n");
-        content.push_str(reason_content);
+        content.push_str(delta.reasoning_content.as_str());
         content.push_str("</think>\n");
     }
     content.push_str(&delta.content);

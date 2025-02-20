@@ -8,7 +8,9 @@ pub(crate) struct Delta {
     #[serde(deserialize_with = "null_to_default")]
     #[serde(default)]
     pub content: String,
-    pub reasoning_content: Option<String>,
+    #[serde(deserialize_with = "null_to_default")]
+    #[serde(default)]
+    pub reasoning_content: String,
     #[serde(default = "default_chat_resp_role")]
     pub role: Role,
 }

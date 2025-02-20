@@ -1,7 +1,7 @@
 use axum::{extract::State, Json};
 use serde::Serialize;
 
-use crate::SharedState;
+use crate::SharedStateRef;
 
 #[derive(Debug, Serialize)]
 pub(crate) struct ModelInfoResp {
@@ -16,7 +16,9 @@ pub(crate) struct ApiTagsResponse {
     models: Vec<ModelInfoResp>,
 }
 
-pub(crate) async fn api_tags(State(state): State<SharedState>) -> Json<ApiTagsResponse> {
+pub(crate) async fn api_tags(
+    State(state): State<SharedStateRef>,
+) -> Json<ApiTagsResponse> {
     let models = {
         let guard = state.model_config.read();
         guard

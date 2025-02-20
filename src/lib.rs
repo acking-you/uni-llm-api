@@ -9,6 +9,7 @@ use reqwest::Proxy;
 use serde_json::json;
 use serde_json::Value;
 use std::fmt::Debug;
+use std::sync::Arc;
 use tokio::net::ToSocketAddrs;
 use tower_http::trace::DefaultMakeSpan;
 use tower_http::trace::TraceLayer;
@@ -27,12 +28,13 @@ mod api;
 pub mod common;
 pub mod middleware;
 
-#[derive(Clone)]
 pub(crate) struct SharedState {
     pub proxy_client: Option<Client>,
     pub client: Client,
     pub model_config: UniModelInfoRef,
 }
+
+pub(crate) type SharedStateRef = std::sync::Arc<SharedState>;
 
 /// Run the server
 pub async fn run_server<A: ToSocketAddrs + Debug>(
@@ -70,7 +72,7 @@ pub async fn run_server<A: ToSocketAddrs + Debug>(
         .route("/tags", get(api_tags))
         .route("/chat", post(api_chat))
         .route("/version", get(api_version))
-        .with_state(shared_state);
+        .with_state(Arc::new(shared_state));
 
     let app = Router::new()
         .nest("/api", api_routes) // logging so we can see whats going on

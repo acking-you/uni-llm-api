@@ -7,7 +7,7 @@ use crate::{
         provider::{self, aliyun, bytedance, deepseek, google, siliconflow, tencent},
         uni_ollama::message::OllamaChatRequest,
     },
-    SharedState,
+    SharedStateRef,
 };
 
 use super::error::AppError;
@@ -15,37 +15,49 @@ use super::error::AppError;
 /// Handle chat requests. This function is called when a POST request is made to `/api/chat`.
 /// See [ollama chat api](https://github.com/ollama/ollama/blob/main/docs/api.md#generate-a-chat-completion)
 pub(crate) async fn api_chat(
-    State(state): State<SharedState>,
+    State(state): State<SharedStateRef>,
     body: String,
 ) -> Result<Response, AppError> {
     let payload: OllamaChatRequest =
         serde_json::from_str(&body).context("Get ChatRequest")?;
-    let SharedState {
-        client,
-        model_config,
-        proxy_client,
-    } = state;
     // Retrieve specific information about the calling model,
     // and invoke the corresponding interface to complete the API call based on the API provider
     let (model_id, model_name, api_info) = {
-        let guard = model_config.read();
-        let value = guard
-            .models
-            .get(&payload.model)
-            .context("Invalid model id")?;
-        let api_info = guard
-            .api_keys
-            .get(&value.api_key_id)
-            .context("Invalid api_key_id")?;
-        (payload.model.clone(), value.name.clone(), api_info.clone())
+        let (model_name, api_key_id) = {
+            let guard = state.model_config.read();
+            let model_name = guard
+                .models
+                .get(&payload.model)
+                .context("Invalid model id")?
+                .name
+                .clone();
+            let api_key_id = guard
+                .models
+                .get(&payload.model)
+                .context("Invalid model id")?
+                .api_key_id
+                .clone();
+            (model_name, api_key_id)
+        };
+        let api_info = {
+            let mut guard = state.model_config.write();
+            let api_key_info = guard
+                .api_keys
+                .get_mut(&api_key_id)
+                .context("Invalid api_key_id")?;
+            api_key_info.selected()
+        };
+        (payload.model.clone(), model_name, api_info)
     };
     // Provide the correct client instance based on whether a proxy is needed
     let client = if api_info.need_proxy {
         tracing::info!("start proxy: model_id:{model_id} model_name:{model_name}");
-        proxy_client
+        state
+            .proxy_client
+            .clone()
             .with_context(|| "You've chosen to use a proxy but haven't set it up yet")?
     } else {
-        client
+        state.client.clone()
     };
     // Make a request to the corresponding cloud provider's API
     let res = match api_info.provider {
