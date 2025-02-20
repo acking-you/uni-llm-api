@@ -24,7 +24,18 @@ Here are a few platforms I'm currently using that offer free API access:
 
 #### Install
 
+1. By downloading the precompiled binary: [releases](https://github.com/acking-you/uni-llm-api/releases)
+
+2. Install via the `cargo install`:
+```sh
+cargo install --git https://github.com/acking-you/uni-llm-api.git --bin uni-llm
+```
 #### Usage
+
+##### Configuration file
+
+
+##### Start the service
 
 
 #### Integrated into other AI tools
